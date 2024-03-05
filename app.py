@@ -2,13 +2,18 @@ import sqlite3
 from flask import request
 from flask import Flask, jsonify
 from flask_cors import CORS
+from audioConversion import convert_webm_to_wav
+from draft import compare_words
+from routes import audio_routes
 from transformers import pipeline
 
 app = Flask(__name__)
 CORS(app)
 
 
-pipe_arabic = pipeline("automatic-speech-recognition", model="othrif/wav2vec2-large-xlsr-arabic")
+#pipe_arabic = pipeline("automatic-speech-recognition", model="othrif/wav2vec2-large-xlsr-arabic")
+pipe_arabic = pipeline("automatic-speech-recognition", model="openai/whisper-small", generate_kwargs={"language":"arabic"})
+
 
 default_key = 0;
 # app.register_blueprint(audio_routes)
@@ -97,23 +102,17 @@ def process_audio():
         except Exception as e:
             return jsonify({"error": f"Unexpected error: {str(e)}"})
 
-
-
-
-@app.route('/GetNext', methods=['GET'])
-def get_next_sentence():
-    global default_key
+@app.route('/GetWord/<int:id>', methods=['GET'])  # Receive the ID as a parameter
+def getSentence(id):
+    wordId = id
 
     # Connect to the SQLite database
     conn = sqlite3.connect('Translations.db')
     cursor = conn.cursor()
 
     # Retrieve the next sentence from the database
-    cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (default_key,))
+    cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (wordId,))
     row = cursor.fetchone()
-
-    # Increment default key for the next call
-    default_key += 1
 
     # Close the database connection
     conn.close()
@@ -129,33 +128,63 @@ def get_next_sentence():
     else:
         return jsonify({"error": "No more sentences available"})
 
-@app.route('/GetPrevious', methods=['GET'])
-def get_previous_sentence():
-    global default_key
 
-    # Decrement default key for the previous call
-    default_key = default_key - 1
+# @app.route('/GetNext', methods=['GET'])
+# def get_next_sentence():
+#     global default_key
 
-    # Connect to the SQLite database
-    conn = sqlite3.connect('Translations.db')
-    cursor = conn.cursor()
+#     # Connect to the SQLite database
+#     conn = sqlite3.connect('Translations.db')
+#     cursor = conn.cursor()
 
-    # Retrieve the previous sentence from the database
-    cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (default_key,))
-    row = cursor.fetchone()
+#     # Retrieve the next sentence from the database
+#     cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (default_key,))
+#     row = cursor.fetchone()
 
-    # Close the database connection
-    conn.close()
+#     # Increment default key for the next call
+#     default_key += 1
 
-    if row:
-        id, english_sentence, arabic_sentence = row
-        return jsonify({
-            "id": id,
-            "englishSentence": english_sentence,
-            "arabicSentence": arabic_sentence
-        })
-    else:
-        return jsonify({"error": "No previous sentences available"})
+#     # Close the database connection
+#     conn.close()
+
+#     if row:
+#         print(row)
+#         id, english_sentence, arabic_sentence = row
+#         return jsonify({
+#             "id": id,
+#             "englishSentence": english_sentence,
+#             "arabicSentence": arabic_sentence
+#         })
+#     else:
+#         return jsonify({"error": "No more sentences available"})
+
+# @app.route('/GetPrevious', methods=['GET'])
+# def get_previous_sentence():
+#     global default_key
+
+#     # Decrement default key for the previous call
+#     default_key = default_key - 1
+
+#     # Connect to the SQLite database
+#     conn = sqlite3.connect('Translations.db')
+#     cursor = conn.cursor()
+
+#     # Retrieve the previous sentence from the database
+#     cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (default_key,))
+#     row = cursor.fetchone()
+
+#     # Close the database connection
+#     conn.close()
+
+#     if row:
+#         id, english_sentence, arabic_sentence = row
+#         return jsonify({
+#             "id": id,
+#             "englishSentence": english_sentence,
+#             "arabicSentence": arabic_sentence
+#         })
+#     else:
+#         return jsonify({"error": "No previous sentences available"})
 
 
 if __name__ == '__main__':
