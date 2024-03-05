@@ -6,13 +6,15 @@ from audioConversion import convert_webm_to_wav
 from draft import compare_words
 from routes import audio_routes
 from transformers import pipeline
-
+import torch
 app = Flask(__name__)
 CORS(app)
 
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+print(device)
 
-#pipe_arabic = pipeline("automatic-speech-recognition", model="othrif/wav2vec2-large-xlsr-arabic")
-pipe_arabic = pipeline("automatic-speech-recognition", model="openai/whisper-small", generate_kwargs={"language":"arabic"})
+#pipe_arabic = pipeline("automatic-speech-recognition", model="othrif/wav2vec2-large-xlsr-arabic", device=device)
+pipe_arabic = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", generate_kwargs={"language":"arabic"}, device=device)
 
 
 default_key = 0;
@@ -127,65 +129,6 @@ def getSentence(id):
         })
     else:
         return jsonify({"error": "No more sentences available"})
-
-
-# @app.route('/GetNext', methods=['GET'])
-# def get_next_sentence():
-#     global default_key
-
-#     # Connect to the SQLite database
-#     conn = sqlite3.connect('Translations.db')
-#     cursor = conn.cursor()
-
-#     # Retrieve the next sentence from the database
-#     cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (default_key,))
-#     row = cursor.fetchone()
-
-#     # Increment default key for the next call
-#     default_key += 1
-
-#     # Close the database connection
-#     conn.close()
-
-#     if row:
-#         print(row)
-#         id, english_sentence, arabic_sentence = row
-#         return jsonify({
-#             "id": id,
-#             "englishSentence": english_sentence,
-#             "arabicSentence": arabic_sentence
-#         })
-#     else:
-#         return jsonify({"error": "No more sentences available"})
-
-# @app.route('/GetPrevious', methods=['GET'])
-# def get_previous_sentence():
-#     global default_key
-
-#     # Decrement default key for the previous call
-#     default_key = default_key - 1
-
-#     # Connect to the SQLite database
-#     conn = sqlite3.connect('Translations.db')
-#     cursor = conn.cursor()
-
-#     # Retrieve the previous sentence from the database
-#     cursor.execute("SELECT id, englishSentences, arabicSentences FROM arabic_lessons WHERE id = ?", (default_key,))
-#     row = cursor.fetchone()
-
-#     # Close the database connection
-#     conn.close()
-
-#     if row:
-#         id, english_sentence, arabic_sentence = row
-#         return jsonify({
-#             "id": id,
-#             "englishSentence": english_sentence,
-#             "arabicSentence": arabic_sentence
-#         })
-#     else:
-#         return jsonify({"error": "No previous sentences available"})
-
 
 if __name__ == '__main__':
     app.run(debug=True)
