@@ -8,12 +8,14 @@ from transformers import pipeline
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 print(device)
 
-#pipe_arabic = pipeline("automatic-speech-recognition", model="faster/whisper-large-v3", generate_kwargs={"language":"english"}, device=device)
+# pipe_arabic = pipeline("automatic-speech-recognition", model="faster/whisper-large-v3", generate_kwargs={"language":"english"}, device=device)
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-def record_chunk(p, stream, file_path, chunk_length=5):
+
+
+def record_chunk(p, stream, file_path, chunk_length=1):
     frames = []
-    for _ in range(0, int(16000/ 1024 * chunk_length)):
+    for _ in range(0, int(16000 / 1024 * chunk_length)):
         data = stream.read(1024)
         frames.append(data)
 
@@ -24,37 +26,43 @@ def record_chunk(p, stream, file_path, chunk_length=5):
     wf.writeframes(b''.join(frames))
     wf.close()
 
+
 def transcribe_chunk(model, chunk_file):
-    # return pipe_arabic(chunk_file)['text']
-    segments, info = model.transcribe(chunk_file, beam_size=5)
-    for segment in segments:
-        return segment.text
+    segments, info = model.transcribe(chunk_file, beam_size=3)
+    if segments:
+        for segment in segments:
+            return segment.text
+    else:
+        return ""
+
 
 def main2():
-    model_size = "large-v2.ar"
+    model_size = "large-v2"
 
     # Run on GPU with FP16
-    # model = WhisperModel(model_size, device="cuda", compute_type="float16")
+    model = WhisperModel(model_size, device="cuda",
+                         compute_type="float16", num_workers=2)
 
     # or run on GPU with INT8
-    model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
+    # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16", num_workers=2)
     # or run on CPU with INT8
     # model = WhisperModel(model_size, device="cpu", compute_type="int8")
     print("Start...")
     p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024)
+    stream = p.open(format=pyaudio.paInt16, channels=1,
+                    rate=16000, input=True, frames_per_buffer=1024)
 
     accumulated_transcription = ""
-
     try:
         while True:
             chunk_file = "temp_chunk.wav"
             record_chunk(p, stream, chunk_file)
             transcription = transcribe_chunk(model, chunk_file)
-            print(transcription)
-            os.remove(chunk_file)
+            if transcription:
+                print(transcription)
+                os.remove(chunk_file)
 
-            accumulated_transcription += transcription + " "
+                accumulated_transcription += transcription + " "
     except KeyboardInterrupt:
         print("Stopping..")
         with open("log.txt", "w") as log_file:
@@ -64,7 +72,8 @@ def main2():
         stream.stop_stream()
         stream.close()
         p.terminate()
-        
+
+
 if __name__ == "__main__":
     main2()
 # segments, info = model.transcribe("./uploads/1.wav", beam_size=5)

@@ -2,9 +2,6 @@ import sqlite3
 from flask import request
 from flask import Flask, jsonify
 from flask_cors import CORS
-from audioConversion import convert_webm_to_wav
-from draft import compare_words
-from routes import audio_routes
 from transformers import pipeline
 import torch
 app = Flask(__name__)
@@ -13,8 +10,8 @@ CORS(app)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 print(device)
 
-#pipe_arabic = pipeline("automatic-speech-recognition", model="othrif/wav2vec2-large-xlsr-arabic", device=device)
-pipe_arabic = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", generate_kwargs={"language":"arabic"}, device=device)
+pipe_arabic = pipeline("automatic-speech-recognition", model="othrif/wav2vec2-large-xlsr-arabic", device=device)
+#pipe_arabic = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", generate_kwargs={"language":"arabic"}, device=device)
 
 
 default_key = 0;
