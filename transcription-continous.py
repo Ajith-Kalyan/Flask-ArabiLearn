@@ -10,11 +10,15 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 print(device)
 
 
-def record_chunk(p, stream, file_path, chunk_length=0.5):
+def record_stream(p, stream, file_path):
     frames = []
-    for _ in range(0, int(16000 / 1024 * chunk_length)):
+    while True:
         data = stream.read(1024)
         frames.append(data)
+
+        # Adjust the condition based on your requirement for stopping recording
+        if len(frames) >= 16000 * 5:  # Stop after 5 seconds of recording
+            break
 
     wf = wave.open(file_path, "wb")
     wf.setnchannels(1)
@@ -24,13 +28,13 @@ def record_chunk(p, stream, file_path, chunk_length=0.5):
     wf.close()
 
 
-def transcribe_chunk(model, chunk_file):
-    segments, _ = model.transcribe(chunk_file, beam_size=5)
+def transcribe_stream(model, stream_file):
+    segments, _ = model.transcribe(stream_file, beam_size=5)
+    transcription = ""
     if segments:
         for segment in segments:
-            return segment.text
-    else:
-        return ""
+            transcription += segment.text + " "
+    return transcription.strip()
 
 
 def main():
@@ -51,14 +55,14 @@ def main():
         nonlocal accumulated_transcription
         try:
             while True:
-                chunk_file = "temp_chunk.wav"
-                record_chunk(p, stream, chunk_file)
-                transcription = transcribe_chunk(model, chunk_file)
+                stream_file = "temp_stream.wav"
+                record_stream(p, stream, stream_file)
+                transcription = transcribe_stream(model, stream_file)
                 if transcription:
                     with lock:
                         accumulated_transcription += transcription + " "
-                print(accumulated_transcription)
-                os.remove(chunk_file)
+                    print(transcription)  # Print the transcription live
+                os.remove(stream_file)
         except KeyboardInterrupt:
             print("Stopping...")
 
